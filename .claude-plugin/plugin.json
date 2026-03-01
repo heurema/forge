@@ -1,0 +1,15 @@
+{
+  "name": "forge",
+  "version": "0.1.0",
+  "description": "Plugin lifecycle manager for heurema org. Scaffold, verify, register plugins.",
+  "author": {
+    "name": "heurema"
+  },
+  "homepage": "https://github.com/heurema/forge",
+  "repository": "https://github.com/heurema/forge",
+  "license": "MIT",
+  "keywords": ["plugin-lifecycle", "scaffold", "registry", "marketplace"],
+  "status": "alpha",
+  "owner": "heurema",
+  "tags": ["devtools", "lifecycle", "automation"]
+}

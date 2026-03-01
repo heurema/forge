@@ -1,0 +1,30 @@
+[project]
+name = "forge"
+version = "0.1.0"
+description = "Plugin lifecycle manager for heurema org"
+requires-python = ">=3.14"
+dependencies = ["jinja2>=3.1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.4", "mypy>=1.10"]
+
+[project.scripts]
+forge = "forge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["jinja2", "jinja2.*"]
+ignore_missing_imports = true
