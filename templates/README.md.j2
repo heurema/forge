@@ -1,0 +1,18 @@
+# {{ name }}
+
+> {{ description }}
+
+{% if type == "marketplace" %}
+## Installation
+
+<!-- INSTALL:START — auto-synced from emporium/INSTALL_REFERENCE.md -->
+```bash
+claude plugin marketplace add {{ github_org }}/emporium
+claude plugin install {{ name }}@emporium
+```
+<!-- INSTALL:END -->
+
+{% endif %}
+## Usage
+
+TODO: Add usage instructions.

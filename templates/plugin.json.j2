@@ -1,0 +1,16 @@
+{
+  "name": {{ name | tojson }},
+  "version": {{ version | tojson }},
+  "description": {{ description | tojson }},
+  "author": {
+    "name": {{ github_org | tojson }}
+  },
+  "homepage": "https://github.com/{{ github_org }}/{{ name }}",
+  "repository": "https://github.com/{{ github_org }}/{{ name }}",
+  "license": "MIT",
+  "type": {{ type | tojson }},
+  "keywords": [],
+  "status": "alpha",
+  "owner": {{ github_org | tojson }},
+  "tags": [{{ category | tojson }}]
+}
