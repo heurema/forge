@@ -36,7 +36,7 @@ def _check_git_config(key: str) -> CheckResult:
         if value:
             return CheckResult(name=f"git {key}", passed=True, detail=value)
         return CheckResult(name=f"git {key}", passed=False, detail="not set")
-    except subprocess.TimeoutExpired, FileNotFoundError:
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return CheckResult(name=f"git {key}", passed=False, detail="git not available")
 
 
@@ -56,7 +56,7 @@ def _check_repo_origin(path: Path, expected_org: str, name: str) -> CheckResult:
         return CheckResult(
             name=name, passed=False, detail=f"origin {url} doesn't match {expected_org}"
         )
-    except subprocess.TimeoutExpired, FileNotFoundError:
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return CheckResult(name=name, passed=False, detail="git not available")
 
 

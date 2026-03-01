@@ -39,7 +39,7 @@ def _parse_yaml_frontmatter(text: str) -> dict[str, str]:
             continue
         key, sep, value = line.partition(":")
         if sep:
-            result[key.strip()] = value.strip()
+            result[key.strip()] = value.strip().strip("\"'")
     return result
 
 
