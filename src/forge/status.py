@@ -92,11 +92,13 @@ def check_plugin_status(
     # File checks
     checks.append(_check_file(plugin_dir, ".gitignore"))
     checks.append(_check_file(plugin_dir, "README.md"))
-    checks.append(StatusCheck(
-        name="plugin.json",
-        passed=True,
-        detail=f"v{manifest.get('version', '?')}",
-    ))
+    checks.append(
+        StatusCheck(
+            name="plugin.json",
+            passed=True,
+            detail=f"v{manifest.get('version', '?')}",
+        )
+    )
     checks.append(_check_file(plugin_dir, "CHANGELOG.md"))
 
     # Registry checks (always for marketplace and project)
@@ -114,14 +116,20 @@ def check_plugin_status(
                     raw = json.loads(web_mp.read_text())
                     plugins = raw if isinstance(raw, list) else raw.get("plugins", [])
                     found = any(e.get("name") == plugin_name for e in plugins)
-                    checks.append(StatusCheck(
-                        name="website marketplace",
-                        passed=found,
-                        detail="found" if found else "not registered",
-                    ))
+                    checks.append(
+                        StatusCheck(
+                            name="website marketplace",
+                            passed=found,
+                            detail="found" if found else "not registered",
+                        )
+                    )
                 except json.JSONDecodeError:
-                    checks.append(StatusCheck(name="website marketplace", passed=False, detail="invalid JSON"))
+                    checks.append(
+                        StatusCheck(name="website marketplace", passed=False, detail="invalid JSON")
+                    )
             else:
-                checks.append(StatusCheck(name="website marketplace", passed=False, detail="file not found"))
+                checks.append(
+                    StatusCheck(name="website marketplace", passed=False, detail="file not found")
+                )
 
     return checks

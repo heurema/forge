@@ -3,9 +3,7 @@
 import json
 from pathlib import Path
 
-import pytest
-
-from forge.verify import VerifyResult, verify_plugin
+from forge.verify import verify_plugin
 
 
 def _make_plugin(tmp_path: Path, *, plugin_type: str = "marketplace") -> Path:
@@ -23,7 +21,9 @@ def _make_plugin(tmp_path: Path, *, plugin_type: str = "marketplace") -> Path:
     (plugin_dir / ".gitignore").write_text("__pycache__/\n")
     (plugin_dir / "README.md").write_text(
         "# test-plugin\n\n"
-        "<!-- INSTALL:START -->\n```bash\nclaude plugin install test-plugin@emporium\n```\n<!-- INSTALL:END -->\n"
+        "<!-- INSTALL:START -->\n```bash\n"
+        "claude plugin install test-plugin@emporium\n"
+        "```\n<!-- INSTALL:END -->\n"
     )
     (plugin_dir / "CHANGELOG.md").write_text("# Changelog\n\n## 0.1.0\n\n- Initial\n")
     return plugin_dir
@@ -92,7 +92,9 @@ class TestVerify:
         plugin_dir = _make_plugin(tmp_path)
         (plugin_dir / "README.md").write_text(
             "# test-plugin\n\n> TODO: Add description\n\n"
-            "<!-- INSTALL:START -->\n```bash\nclaude plugin install test-plugin@emporium\n```\n<!-- INSTALL:END -->\n"
+            "<!-- INSTALL:START -->\n```bash\n"
+            "claude plugin install test-plugin@emporium\n"
+            "```\n<!-- INSTALL:END -->\n"
         )
         result = verify_plugin(plugin_dir)
         assert not result.passed

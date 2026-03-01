@@ -18,13 +18,21 @@ def determine_targets(plugin_type: str) -> list[RegistryTarget]:
     """Determine which registries to update based on plugin type."""
     targets: list[RegistryTarget] = []
     if plugin_type in ("marketplace", "project"):
-        targets.append(RegistryTarget(name="skill7_registry", description="skill7 workspace registry.json"))
+        targets.append(
+            RegistryTarget(name="skill7_registry", description="skill7 workspace registry.json")
+        )
     if plugin_type == "marketplace":
-        targets.extend([
-            RegistryTarget(name="emporium", description="emporium marketplace.json"),
-            RegistryTarget(name="website_marketplace", description="skill7.dev marketplace.json"),
-            RegistryTarget(name="website_plugin_meta", description="skill7.dev plugin-meta.json"),
-        ])
+        targets.extend(
+            [
+                RegistryTarget(name="emporium", description="emporium marketplace.json"),
+                RegistryTarget(
+                    name="website_marketplace", description="skill7.dev marketplace.json"
+                ),
+                RegistryTarget(
+                    name="website_plugin_meta", description="skill7.dev plugin-meta.json"
+                ),
+            ]
+        )
     return targets
 
 
@@ -57,8 +65,12 @@ def add_to_marketplace_json(mp_file: Path, entry: dict[str, Any]) -> bool:
 
 
 def add_to_registry(
-    reg_file: Path, name: str, category: str, version: str,
-    description: str = "", owner: str = "heurema",
+    reg_file: Path,
+    name: str,
+    category: str,
+    version: str,
+    description: str = "",
+    owner: str = "heurema",
 ) -> bool:
     """Add entry to skill7 registry.json. Returns False if duplicate.
 
@@ -69,15 +81,17 @@ def add_to_registry(
         data[category] = []
     if any(p.get("name") == name for p in data[category]):
         return False
-    data[category].append({
-        "name": name,
-        "description": description,
-        "owner": owner,
-        "path": f"{category}/{name}",
-        "status": "active",
-        "tags": [category],
-        "version": version,
-    })
+    data[category].append(
+        {
+            "name": name,
+            "description": description,
+            "owner": owner,
+            "path": f"{category}/{name}",
+            "status": "active",
+            "tags": [category],
+            "version": version,
+        }
+    )
     data[category].sort(key=lambda e: e.get("name", ""))
     reg_file.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     return True

@@ -63,7 +63,8 @@ def load_config(config_path: Path) -> ForgeConfig:
         )
     if raw["default_category"] not in VALID_CATEGORIES:
         raise ConfigError(
-            f"Invalid default_category: '{raw['default_category']}'. Must be one of {VALID_CATEGORIES}"
+            f"Invalid default_category: '{raw['default_category']}'."
+            f" Must be one of {VALID_CATEGORIES}"
         )
 
     return ForgeConfig(

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from forge.scaffold import scaffold_plugin, ScaffoldError, validate_plugin_name
+from forge.scaffold import ScaffoldError, scaffold_plugin, validate_plugin_name
 
 
 class TestValidateName:

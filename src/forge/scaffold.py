@@ -24,7 +24,9 @@ def validate_plugin_name(name: str) -> None:
     if name != name.lower():
         raise ScaffoldError(f"Plugin name must be lowercase: '{name}'")
     if not NAME_RE.match(name):
-        raise ScaffoldError(f"Invalid plugin name: '{name}' (use lowercase letters, numbers, hyphens)")
+        raise ScaffoldError(
+            f"Invalid plugin name: '{name}' (use lowercase letters, numbers, hyphens)"
+        )
 
 
 def scaffold_plugin(

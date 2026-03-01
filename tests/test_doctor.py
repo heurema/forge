@@ -3,8 +3,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from forge.doctor import CheckResult, run_doctor_checks
 
 

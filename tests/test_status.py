@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from forge.status import StatusCheck, check_plugin_status
 
 

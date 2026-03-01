@@ -32,6 +32,7 @@ def context() -> dict[str, str]:
 class TestTemplates:
     def test_plugin_json_valid(self, env: jinja2.Environment, context: dict[str, str]) -> None:
         import json
+
         rendered = env.get_template("plugin.json.j2").render(context)
         data = json.loads(rendered)
         assert data["name"] == "test-plugin"
@@ -57,8 +58,6 @@ class TestTemplates:
         rendered = env.get_template("gitignore.j2").render(context)
         assert "__pycache__" in rendered
 
-    def test_changelog_has_version(
-        self, env: jinja2.Environment, context: dict[str, str]
-    ) -> None:
+    def test_changelog_has_version(self, env: jinja2.Environment, context: dict[str, str]) -> None:
         rendered = env.get_template("CHANGELOG.md.j2").render(context)
         assert "0.1.0" in rendered

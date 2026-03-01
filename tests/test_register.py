@@ -3,10 +3,7 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from forge.register import (
-    RegistryTarget,
     add_to_marketplace_json,
     add_to_registry,
     build_marketplace_entry,
@@ -48,9 +45,7 @@ class TestAddToMarketplace:
     def test_adds_new_entry_dict_format(self, tmp_path: Path) -> None:
         """Emporium-style dict with plugins key."""
         mp_file = tmp_path / "marketplace.json"
-        mp_file.write_text(json.dumps({
-            "name": "emporium", "plugins": [{"name": "existing"}]
-        }))
+        mp_file.write_text(json.dumps({"name": "emporium", "plugins": [{"name": "existing"}]}))
         entry = {"name": "new-plugin", "description": "test", "category": "development"}
         add_to_marketplace_json(mp_file, entry)
         data = json.loads(mp_file.read_text())

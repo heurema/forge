@@ -28,13 +28,15 @@ def _check_git_config(key: str) -> CheckResult:
     try:
         result = subprocess.run(
             ["git", "config", "--global", key],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         value = result.stdout.strip()
         if value:
             return CheckResult(name=f"git {key}", passed=True, detail=value)
         return CheckResult(name=f"git {key}", passed=False, detail="not set")
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired, FileNotFoundError:
         return CheckResult(name=f"git {key}", passed=False, detail="git not available")
 
 
@@ -44,13 +46,17 @@ def _check_repo_origin(path: Path, expected_org: str, name: str) -> CheckResult:
     try:
         result = subprocess.run(
             ["git", "-C", str(path), "remote", "get-url", "origin"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         url = result.stdout.strip()
         if expected_org in url:
             return CheckResult(name=name, passed=True, detail=url)
-        return CheckResult(name=name, passed=False, detail=f"origin {url} doesn't match {expected_org}")
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return CheckResult(
+            name=name, passed=False, detail=f"origin {url} doesn't match {expected_org}"
+        )
+    except subprocess.TimeoutExpired, FileNotFoundError:
         return CheckResult(name=name, passed=False, detail="git not available")
 
 
@@ -74,11 +80,13 @@ def run_doctor_checks(config_path: Path) -> list[CheckResult]:
         return results  # Can't check repos without config
 
     # Repos
-    results.append(CheckResult(
-        name="skill7 workspace",
-        passed=cfg.skill7_workspace.exists(),
-        detail=str(cfg.skill7_workspace),
-    ))
+    results.append(
+        CheckResult(
+            name="skill7 workspace",
+            passed=cfg.skill7_workspace.exists(),
+            detail=str(cfg.skill7_workspace),
+        )
+    )
     results.append(_check_repo_origin(cfg.emporium_path, cfg.github_org, "emporium clone"))
     results.append(_check_repo_origin(cfg.website_path, cfg.github_org, "skill7.dev clone"))
 
