@@ -8,8 +8,5 @@
   "homepage": "https://github.com/heurema/forge",
   "repository": "https://github.com/heurema/forge",
   "license": "MIT",
-  "keywords": ["plugin-lifecycle", "scaffold", "registry", "marketplace"],
-  "status": "alpha",
-  "owner": "heurema",
-  "tags": ["devtools", "lifecycle", "automation"]
+  "keywords": ["plugin-lifecycle", "scaffold", "registry", "marketplace"]
 }
