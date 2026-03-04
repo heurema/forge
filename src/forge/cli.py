@@ -34,6 +34,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p_reg.add_argument("--dry-run", action="store_true", help="Show what would be done")
     p_reg.add_argument("--yes", action="store_true", help="Skip confirmations")
 
+    # readme
+    p_readme = sub.add_parser("readme", help="Generate or update README from template")
+    p_readme.add_argument("--all", action="store_true", help="Update all plugins in workspace")
+    p_readme.add_argument("--dry-run", action="store_true", help="Show diff without writing")
+    p_readme.add_argument("--force", action="store_true", help="Overwrite without merge")
+    p_readme.add_argument("--template", type=str, help="Path to custom template")
+
     # doctor
     sub.add_parser("doctor", help="Check dependencies and config")
 
@@ -236,6 +243,98 @@ def cmd_new(args: argparse.Namespace) -> int:
     print(f"\nPlugin created at: {target}")
     print(f"Next: cd {target}, develop, then /forge-verify && /forge-register")
     return 0
+
+
+def _resolve_template(args: argparse.Namespace) -> Path:
+    """Resolve README template path: CLI arg > config > built-in."""
+    builtin = Path(__file__).resolve().parent.parent.parent / "templates" / "README.md.j2"
+
+    if hasattr(args, "template") and args.template:
+        p = Path(args.template).expanduser()
+        if not p.exists():
+            print(f"Error: template not found: {p}", file=sys.stderr)
+            sys.exit(1)
+        return p
+
+    try:
+        from forge.config import ConfigError, load_config
+
+        cfg = load_config(_config_path())
+        if cfg.readme_template and cfg.readme_template.exists():
+            return cfg.readme_template
+    except (ConfigError, Exception):
+        pass
+
+    return builtin
+
+
+def _readme_for_plugin(
+    plugin_dir: Path, template_path: Path, *, merge: bool, dry_run: bool
+) -> int:
+    """Generate/update README for a single plugin. Returns 0 on success."""
+    from forge.readme import generate_readme
+
+    try:
+        manifest_path = plugin_dir / ".claude-plugin" / "plugin.json"
+        if not manifest_path.exists():
+            print(f"  skip: {plugin_dir.name} (no plugin.json)")
+            return 0
+
+        content, changes = generate_readme(plugin_dir, template_path, merge=merge)
+        change_str = ", ".join(changes)
+
+        if "no changes needed" in change_str:
+            print(f"  {plugin_dir.name}: no changes")
+            return 0
+
+        if dry_run:
+            print(f"  {plugin_dir.name}: {change_str} (dry-run)")
+            return 0
+
+        (plugin_dir / "README.md").write_text(content)
+        print(f"  {plugin_dir.name}: {change_str}")
+        return 0
+    except Exception as e:
+        print(f"  {plugin_dir.name}: error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_readme(args: argparse.Namespace) -> int:
+    template_path = _resolve_template(args)
+    merge = not args.force
+    dry_run = args.dry_run
+
+    if args.all:
+        from forge.config import ConfigError, load_config
+
+        try:
+            cfg = load_config(_config_path())
+        except ConfigError as e:
+            print(f"Config error: {e}", file=sys.stderr)
+            return 1
+
+        ws = cfg.skill7_workspace
+        errors = 0
+        count = 0
+        for category_dir in sorted(ws.iterdir()):
+            if not category_dir.is_dir() or category_dir.name.startswith("."):
+                continue
+            for plugin_dir in sorted(category_dir.iterdir()):
+                if not plugin_dir.is_dir():
+                    continue
+                if not (plugin_dir / ".claude-plugin" / "plugin.json").exists():
+                    continue
+                count += 1
+                errors += _readme_for_plugin(
+                    plugin_dir, template_path, merge=merge, dry_run=dry_run
+                )
+
+        verb = "would update" if dry_run else "updated"
+        print(f"\n{verb} {count} plugins, {errors} errors")
+        return 1 if errors else 0
+
+    plugin_dir = _find_plugin_dir()
+    return _readme_for_plugin(plugin_dir, template_path, merge=merge, dry_run=dry_run)
 
 
 def cmd_register(args: argparse.Namespace) -> int:
@@ -556,6 +655,7 @@ def main(argv: list[str] | None = None) -> None:
         "new": lambda: cmd_new(args),
         "status": cmd_status,
         "verify": cmd_verify,
+        "readme": lambda: cmd_readme(args),
         "register": lambda: cmd_register(args),
         "doctor": cmd_doctor,
     }

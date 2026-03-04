@@ -74,6 +74,12 @@ def verify_plugin(plugin_dir: Path) -> VerifyResult:
         if plugin_type == "marketplace" and "<!-- INSTALL:START" not in readme:
             result.errors.append("README.md missing INSTALL markers (required for marketplace)")
 
+        # Extended README validation
+        from forge.readme_verify import verify_readme_structure, verify_readme_style
+
+        result.errors.extend(verify_readme_structure(readme, plugin_type))
+        result.errors.extend(verify_readme_style(readme))
+
     # CHANGELOG version match
     changelog_path = plugin_dir / "CHANGELOG.md"
     if changelog_path.exists() and version:

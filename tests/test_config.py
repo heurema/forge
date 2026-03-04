@@ -74,6 +74,39 @@ class TestForgeConfig:
         with pytest.raises(ConfigError, match="default_category"):
             load_config(config_file)
 
+    def test_readme_template_loaded(self, tmp_path: Path) -> None:
+        config_file = tmp_path / "forge.local.md"
+        config_file.write_text(
+            textwrap.dedent("""\
+            ---
+            skill7_workspace: /tmp/skill7
+            emporium_path: /tmp/emporium
+            website_path: /tmp/skill7dev
+            github_org: heurema
+            readme_template: ~/my-templates/README.md.j2
+            ---
+        """)
+        )
+        cfg = load_config(config_file)
+        assert cfg.readme_template is not None
+        assert str(cfg.readme_template).endswith("my-templates/README.md.j2")
+        assert "~" not in str(cfg.readme_template)
+
+    def test_readme_template_default_none(self, tmp_path: Path) -> None:
+        config_file = tmp_path / "forge.local.md"
+        config_file.write_text(
+            textwrap.dedent("""\
+            ---
+            skill7_workspace: /tmp/skill7
+            emporium_path: /tmp/emporium
+            website_path: /tmp/skill7dev
+            github_org: heurema
+            ---
+        """)
+        )
+        cfg = load_config(config_file)
+        assert cfg.readme_template is None
+
     def test_invalid_type_raises(self, tmp_path: Path) -> None:
         config_file = tmp_path / "forge.local.md"
         config_file.write_text(

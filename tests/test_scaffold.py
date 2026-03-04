@@ -76,8 +76,11 @@ class TestScaffold:
             github_org="heurema",
             templates_dir=Path(__file__).parent.parent / "templates",
         )
-        readme = target / "README.md"
-        assert "<!-- INSTALL:START" in readme.read_text()
+        readme_text = (target / "README.md").read_text()
+        assert "<!-- INSTALL:START" in readme_text
+        assert "## Install" in readme_text
+        assert "## Privacy" in readme_text
+        assert "shields.io" in readme_text
 
     def test_local_no_install_markers(self, tmp_path: Path) -> None:
         target = tmp_path / "test-plugin"
@@ -90,8 +93,10 @@ class TestScaffold:
             github_org="heurema",
             templates_dir=Path(__file__).parent.parent / "templates",
         )
-        readme = target / "README.md"
-        assert "<!-- INSTALL:START" not in readme.read_text()
+        readme_text = (target / "README.md").read_text()
+        assert "<!-- INSTALL:START" not in readme_text
+        assert "## Install" in readme_text
+        assert "## Privacy" in readme_text
 
     def test_existing_dir_raises(self, tmp_path: Path) -> None:
         target = tmp_path / "exists"

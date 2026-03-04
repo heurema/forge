@@ -1,18 +1,63 @@
-# {{ name }}
+# {{ name | capitalize }}
 
 > {{ description }}
 
 {% if type == "marketplace" %}
-## Installation
+[![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-plugin-5b21b6?style=flat-square)](https://skill7.dev)
+[![Version](https://img.shields.io/badge/version-{{ version }}-5b21b6?style=flat-square)]()
+[![License](https://img.shields.io/badge/license-MIT-5b21b6?style=flat-square)](LICENSE)
 
-<!-- INSTALL:START — auto-synced from emporium/INSTALL_REFERENCE.md -->
+{% endif %}
+## What it does
+
+{{ description }}
+
+{% if type == "marketplace" %}
+## Install
+
+<!-- INSTALL:START -- auto-synced from emporium/INSTALL_REFERENCE.md -->
 ```bash
 claude plugin marketplace add {{ github_org }}/emporium
 claude plugin install {{ name }}@emporium
 ```
 <!-- INSTALL:END -->
 
-{% endif %}
-## Usage
+<details>
+<summary>Manual install (from source)</summary>
 
-Add usage instructions here.
+```bash
+git clone https://github.com/{{ github_org }}/{{ name }}.git ~/.claude/plugins/{{ name }}
+```
+
+</details>
+
+## Quick start
+
+```
+/{{ name }} # get started
+```
+
+## Commands
+
+| Command | What it does |
+|---------|-------------|
+| `/{{ name }}` | Run {{ name }} |
+
+{% else %}
+## Install
+
+Clone the repo and add to your Claude Code plugins.
+
+{% endif %}
+## Privacy
+
+{{ name | capitalize }} runs entirely on your machine. No data is sent to external services.
+
+## See also
+
+- [skill7.dev](https://skill7.dev) — plugin catalog and docs
+- [emporium](https://github.com/{{ github_org }}/emporium) — the {{ github_org }} marketplace
+
+## License
+
+[MIT](LICENSE)

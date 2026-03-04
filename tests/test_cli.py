@@ -35,6 +35,28 @@ class TestParseArgs:
         assert args.command == "register"
         assert args.yes is True
 
+    def test_readme_command(self) -> None:
+        args = parse_args(["readme"])
+        assert args.command == "readme"
+        assert args.all is False
+        assert args.dry_run is False
+        assert args.force is False
+        assert args.template is None
+
+    def test_readme_all_dry_run(self) -> None:
+        args = parse_args(["readme", "--all", "--dry-run"])
+        assert args.command == "readme"
+        assert args.all is True
+        assert args.dry_run is True
+
+    def test_readme_force(self) -> None:
+        args = parse_args(["readme", "--force"])
+        assert args.force is True
+
+    def test_readme_custom_template(self) -> None:
+        args = parse_args(["readme", "--template", "/tmp/my.j2"])
+        assert args.template == "/tmp/my.j2"
+
     def test_doctor_command(self) -> None:
         args = parse_args(["doctor"])
         assert args.command == "doctor"
