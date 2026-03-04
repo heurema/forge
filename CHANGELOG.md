@@ -1,11 +1,5 @@
 # Changelog
 
-## 0.3.0
-
-- Add skill activation logging hook (PostToolUse → Skill matcher)
-- Logs skill_id, loaded, session_id, timestamp to ~/.local/share/emporium/activation.jsonl
-- Self-kill watchdog (2s timeout), single jq call, atomic printf writes
-
 ## 0.2.0
 
 - Add `forge readme` command — generate/update README from template
