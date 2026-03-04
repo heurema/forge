@@ -14,7 +14,7 @@ class ConfigError(Exception):
 VALID_TYPES = {"marketplace", "project", "local"}
 VALID_CATEGORIES = {"devtools", "trading", "creative"}
 REQUIRED_FIELDS = ("skill7_workspace", "emporium_path", "website_path", "github_org")
-DEFAULTS = {"default_type": "marketplace", "default_category": "devtools"}
+DEFAULTS: dict[str, str] = {"default_type": "marketplace", "default_category": "devtools"}
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,7 @@ class ForgeConfig:
     github_org: str
     default_type: str
     default_category: str
+    readme_template: Path | None
 
 
 def _parse_yaml_frontmatter(text: str) -> dict[str, str]:
@@ -67,6 +68,10 @@ def load_config(config_path: Path) -> ForgeConfig:
             f" Must be one of {VALID_CATEGORIES}"
         )
 
+    readme_template: Path | None = None
+    if "readme_template" in raw:
+        readme_template = Path(raw["readme_template"]).expanduser()
+
     return ForgeConfig(
         skill7_workspace=Path(raw["skill7_workspace"]).expanduser(),
         emporium_path=Path(raw["emporium_path"]).expanduser(),
@@ -74,4 +79,5 @@ def load_config(config_path: Path) -> ForgeConfig:
         github_org=raw["github_org"],
         default_type=raw["default_type"],
         default_category=raw["default_category"],
+        readme_template=readme_template,
     )
