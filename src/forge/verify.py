@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
+KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 REQUIRED_MANIFEST_FIELDS = ("name", "version", "description")
 
 
@@ -31,6 +32,23 @@ def verify_plugin(plugin_dir: Path) -> VerifyResult:
 
     if not (plugin_dir / "README.md").exists():
         result.errors.append("README.md missing")
+
+    if not (plugin_dir / "LICENSE").exists():
+        result.errors.append("LICENSE missing")
+
+    if not (plugin_dir / "CHANGELOG.md").exists():
+        result.errors.append("CHANGELOG.md missing")
+
+    # Docs checks
+    docs_dir = plugin_dir / "docs"
+    if not (docs_dir / "how-it-works.md").exists():
+        result.errors.append("docs/how-it-works.md missing")
+    if not (docs_dir / "reference.md").exists():
+        result.errors.append("docs/reference.md missing")
+
+    # If src/ exists, tests/ must exist
+    if (plugin_dir / "src").is_dir() and not (plugin_dir / "tests").is_dir():
+        result.errors.append("tests/ required when src/ exists")
 
     if not manifest_path.exists():
         result.errors.append(".claude-plugin/plugin.json missing")
@@ -80,13 +98,35 @@ def verify_plugin(plugin_dir: Path) -> VerifyResult:
         result.errors.extend(verify_readme_structure(readme, plugin_type))
         result.errors.extend(verify_readme_style(readme))
 
-    # CHANGELOG version match
+    # CHANGELOG version match (supports both "## 1.0.0" and "## [1.0.0]" formats)
     changelog_path = plugin_dir / "CHANGELOG.md"
     if changelog_path.exists() and version:
         changelog = changelog_path.read_text()
-        if f"## {version}" not in changelog:
+        if f"## {version}" not in changelog and f"## [{version}]" not in changelog:
             result.errors.append(
                 f"CHANGELOG.md top version does not match plugin.json version {version}"
             )
+
+    # Kebab-case top-level directories
+    SKIP_DIRS = {".claude-plugin", ".git", ".github", "__pycache__", ".venv", "node_modules"}
+    for child in plugin_dir.iterdir():
+        if child.is_dir() and child.name not in SKIP_DIRS and not child.name.startswith("."):
+            if not KEBAB_RE.match(child.name):
+                result.errors.append(
+                    f"Directory '{child.name}' is not kebab-case"
+                )
+
+    # SKILL.md uppercase check
+    skills_dir = plugin_dir / "skills"
+    if skills_dir.is_dir():
+        for skill_dir in skills_dir.iterdir():
+            if skill_dir.is_dir():
+                skill_files = [f.name for f in skill_dir.iterdir() if f.is_file()]
+                if "SKILL.md" not in skill_files:
+                    lower = [f for f in skill_files if f.lower() == "skill.md"]
+                    if lower:
+                        result.errors.append(
+                            f"skills/{skill_dir.name}/{lower[0]} must be SKILL.md (uppercase)"
+                        )
 
     return result

@@ -19,6 +19,12 @@ def _make_plugin(tmp_path: Path, *, plugin_type: str = "marketplace") -> Path:
     }
     (plugin_dir / ".claude-plugin" / "plugin.json").write_text(json.dumps(manifest))
     (plugin_dir / ".gitignore").write_text("__pycache__/\n")
+    (plugin_dir / "LICENSE").write_text("MIT License\n")
+
+    # docs/
+    (plugin_dir / "docs").mkdir()
+    (plugin_dir / "docs" / "how-it-works.md").write_text("# How it works\n")
+    (plugin_dir / "docs" / "reference.md").write_text("# Reference\n")
 
     if plugin_type == "marketplace":
         readme = (
@@ -147,3 +153,75 @@ class TestVerify:
         result = verify_plugin(plugin_dir)
         assert not result.passed
         assert len(result.errors) >= 2
+
+    def test_missing_license_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "LICENSE").unlink()
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("LICENSE" in e for e in result.errors)
+
+    def test_missing_changelog_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "CHANGELOG.md").unlink()
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("CHANGELOG" in e for e in result.errors)
+
+    def test_missing_docs_how_it_works_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "docs" / "how-it-works.md").unlink()
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("how-it-works" in e for e in result.errors)
+
+    def test_missing_docs_reference_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "docs" / "reference.md").unlink()
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("reference" in e for e in result.errors)
+
+    def test_src_without_tests_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "src").mkdir()
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("tests/" in e for e in result.errors)
+
+    def test_src_with_tests_passes(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "src").mkdir()
+        (plugin_dir / "tests").mkdir()
+        result = verify_plugin(plugin_dir)
+        assert result.passed
+
+    def test_non_kebab_dir_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "MyModule").mkdir()
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("kebab-case" in e for e in result.errors)
+
+    def test_kebab_dirs_pass(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        (plugin_dir / "my-module").mkdir()
+        result = verify_plugin(plugin_dir)
+        assert result.passed
+
+    def test_skill_md_lowercase_fails(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        skills = plugin_dir / "skills" / "my-skill"
+        skills.mkdir(parents=True)
+        (skills / "skill.md").write_text("# Skill\n")
+        result = verify_plugin(plugin_dir)
+        assert not result.passed
+        assert any("SKILL.md" in e and "uppercase" in e for e in result.errors)
+
+    def test_skill_md_uppercase_passes(self, tmp_path: Path) -> None:
+        plugin_dir = _make_plugin(tmp_path)
+        skills = plugin_dir / "skills" / "my-skill"
+        skills.mkdir(parents=True)
+        (skills / "SKILL.md").write_text("# Skill\n")
+        result = verify_plugin(plugin_dir)
+        assert result.passed
