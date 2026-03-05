@@ -90,4 +90,9 @@ def run_doctor_checks(config_path: Path) -> list[CheckResult]:
     results.append(_check_repo_origin(cfg.emporium_path, cfg.github_org, "emporium clone"))
     results.append(_check_repo_origin(cfg.website_path, cfg.github_org, "skill7.dev clone"))
 
+    from forge.providers_doctor import check_providers
+
+    providers_config = config_path.parent / "emporium-providers.local.md"
+    results.extend(check_providers(providers_config))
+
     return results
