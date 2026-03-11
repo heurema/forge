@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from forge.config import ConfigError, load_config
+from forge.config import ConfigError, ForgeConfig, load_config, derive_category, VALID_CATEGORIES
 
 
 class TestForgeConfig:
@@ -122,3 +122,54 @@ class TestForgeConfig:
         )
         with pytest.raises(ConfigError, match="default_type"):
             load_config(config_file)
+
+
+class TestRequirePath:
+    def test_existing_path_returns_it(self, tmp_path: Path) -> None:
+        cfg = ForgeConfig(
+            skill7_workspace=tmp_path,
+            emporium_path=tmp_path,
+            website_path=tmp_path,
+            github_org="heurema",
+            default_type="marketplace",
+            default_category="devtools",
+            readme_template=None,
+        )
+        assert cfg.require_path("skill7_workspace") == tmp_path
+
+    def test_missing_path_raises(self, tmp_path: Path) -> None:
+        cfg = ForgeConfig(
+            skill7_workspace=tmp_path / "nonexistent",
+            emporium_path=tmp_path,
+            website_path=tmp_path,
+            github_org="heurema",
+            default_type="marketplace",
+            default_category="devtools",
+            readme_template=None,
+        )
+        with pytest.raises(ConfigError, match="skill7_workspace"):
+            cfg.require_path("skill7_workspace")
+
+
+class TestDeriveCategory:
+    def test_devtools_category(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / "devtools" / "my-plugin"
+        plugin_dir.mkdir(parents=True)
+        assert derive_category(plugin_dir) == "devtools"
+
+    def test_publishing_category(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / "publishing" / "my-plugin"
+        plugin_dir.mkdir(parents=True)
+        assert derive_category(plugin_dir) == "publishing"
+
+    def test_unknown_category_raises(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / "unknown" / "my-plugin"
+        plugin_dir.mkdir(parents=True)
+        with pytest.raises(ConfigError, match="unknown"):
+            derive_category(plugin_dir)
+
+
+class TestValidCategories:
+    def test_includes_publishing_and_research(self) -> None:
+        assert "publishing" in VALID_CATEGORIES
+        assert "research" in VALID_CATEGORIES

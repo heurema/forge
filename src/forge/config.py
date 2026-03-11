@@ -12,7 +12,7 @@ class ConfigError(Exception):
 
 
 VALID_TYPES = {"marketplace", "project", "local"}
-VALID_CATEGORIES = {"devtools", "trading", "creative"}
+VALID_CATEGORIES = {"devtools", "trading", "creative", "publishing", "research"}
 REQUIRED_FIELDS = ("skill7_workspace", "emporium_path", "website_path", "github_org")
 DEFAULTS: dict[str, str] = {"default_type": "marketplace", "default_category": "devtools"}
 
@@ -26,6 +26,13 @@ class ForgeConfig:
     default_type: str
     default_category: str
     readme_template: Path | None
+
+    def require_path(self, field: str) -> Path:
+        """Return the path for field if it exists on disk, else raise ConfigError."""
+        path: Path = getattr(self, field)
+        if not path.exists():
+            raise ConfigError(f"{field} path does not exist: {path}")
+        return path
 
 
 def _parse_yaml_frontmatter(text: str) -> dict[str, str]:
@@ -81,3 +88,14 @@ def load_config(config_path: Path) -> ForgeConfig:
         default_category=raw["default_category"],
         readme_template=readme_template,
     )
+
+
+def derive_category(plugin_dir: Path) -> str:
+    """Derive plugin category from its parent directory name."""
+    category = plugin_dir.parent.name
+    if category not in VALID_CATEGORIES:
+        raise ConfigError(
+            f"Invalid category '{category}' derived from {plugin_dir}. "
+            f"Valid: {sorted(VALID_CATEGORIES)}"
+        )
+    return category
