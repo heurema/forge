@@ -53,6 +53,7 @@ def forge_config(tmp_path: Path, registry_files: dict[str, Path]) -> "ForgeConfi
         github_org="heurema",
         default_type="marketplace",
         default_category="devtools",
+        readme_template=None,
     )
 
 
