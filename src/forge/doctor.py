@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from forge.config import ConfigError, load_config
@@ -58,6 +61,83 @@ def _check_repo_origin(path: Path, expected_org: str, name: str) -> CheckResult:
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return CheckResult(name=name, passed=False, detail="git not available")
+
+
+def refresh_rubric_snapshot(emporium_path: Path, snapshot_dir: Path) -> CheckResult:
+    """Copy rubric from emporium into a local snapshot dir and write a manifest."""
+    try:
+        source = emporium_path / "lib" / "rubric" / "__init__.py"
+        if not source.exists():
+            return CheckResult(
+                name="rubric snapshot",
+                passed=False,
+                detail=f"{source} does not exist",
+            )
+
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        content = source.read_bytes()
+        content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
+
+        dest = snapshot_dir / "__init__.py"
+        dest.write_bytes(content)
+
+        # Try to get HEAD commit from emporium
+        source_commit: str | None = None
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(emporium_path), "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                source_commit = result.stdout.strip() or None
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+        # Try to get remote URL from emporium
+        source_remote: str | None = None
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(emporium_path), "remote", "get-url", "origin"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                source_remote = result.stdout.strip() or None
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+        manifest = {
+            "schema_version": "1.0",
+            "content_hash": content_hash,
+            "source_commit": source_commit,
+            "source_remote": source_remote,
+            "vendored_at": datetime.now(timezone.utc).isoformat(),
+        }
+        (snapshot_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+
+        return CheckResult(
+            name="rubric snapshot",
+            passed=True,
+            detail=f"vendored {content_hash} from {emporium_path}",
+        )
+    except Exception as exc:  # noqa: BLE001
+        return CheckResult(name="rubric snapshot", passed=False, detail=str(exc))
+
+
+def check_gh_auth() -> CheckResult:
+    """Check whether gh CLI is authenticated."""
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "status"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            return CheckResult(name="gh auth", passed=True, detail="authenticated")
+        detail = (result.stderr.strip() or result.stdout.strip() or "not authenticated")
+        return CheckResult(name="gh auth", passed=False, detail=detail)
+    except FileNotFoundError:
+        return CheckResult(name="gh auth", passed=False, detail="gh not found in PATH")
+    except subprocess.TimeoutExpired:
+        return CheckResult(name="gh auth", passed=False, detail="gh auth status timed out")
 
 
 def run_doctor_checks(config_path: Path) -> list[CheckResult]:
