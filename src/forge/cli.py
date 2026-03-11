@@ -34,7 +34,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # register
     p_reg = sub.add_parser("register", help="Register in applicable registries")
     p_reg.add_argument("--dry-run", action="store_true", help="Show what would be done")
-    p_reg.add_argument("--yes", action="store_true", help="Skip confirmations")
 
     # readme
     p_readme = sub.add_parser("readme", help="Generate or update README from template")
@@ -358,16 +357,8 @@ def cmd_readme(args: argparse.Namespace) -> int:
 
 
 def cmd_register(args: argparse.Namespace) -> int:
-    import subprocess
-    from collections.abc import Callable
-
     from forge.config import ConfigError, load_config
-    from forge.register import (
-        add_to_marketplace_json,
-        add_to_registry,
-        build_marketplace_entry,
-        determine_targets,
-    )
+    from forge.register import register_plugin
     from forge.verify import verify_plugin
 
     plugin_dir = _find_plugin_dir()
@@ -384,288 +375,23 @@ def cmd_register(args: argparse.Namespace) -> int:
         print(f"Config error: {e}", file=sys.stderr)
         return 1
 
-    github_org = cfg.github_org
-
     manifest = json.loads((plugin_dir / ".claude-plugin" / "plugin.json").read_text())
     name = manifest["name"]
-    plugin_type = manifest.get("type", "marketplace")
-    description = manifest.get("description", "")
-    version = manifest.get("version", "0.1.0")
-    category = manifest.get("tags", ["devtools"])[0] if manifest.get("tags") else "devtools"
 
-    targets = determine_targets(plugin_type)
-    print(f"Registering {name} ({plugin_type}) in {len(targets)} registries:")
-    for t in targets:
-        print(f"  - {t.description}")
+    dry_run = args.dry_run
+    reg_result = register_plugin(plugin_dir, cfg, dry_run=dry_run)
 
-    if args.dry_run:
-        print("\n--dry-run: no changes made")
-        return 0
-
-    if not args.yes:
-        answer = input("\nProceed? [y/N] ")
-        if answer.lower() != "y":
-            print("Aborted")
-            return 1
-
-    pr_urls: list[str] = []
-    errors: list[str] = []
-
-    def _run_git(cmd: list[str], cwd: str) -> subprocess.CompletedProcess[str]:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=30)
-        if r.returncode != 0:
-            raise RuntimeError(f"git failed: {' '.join(cmd)}: {r.stderr.strip()}")
-        return r
-
-    def _register_in_repo(
-        repo_path: Path,
-        branch: str,
-        label: str,
-        update_fn: Callable[[], bool],
-        commit_msg: str,
-        pr_title: str,
-        pr_body: str,
-        files_to_add: list[str],
-    ) -> None:
-        """Branch + update + commit + push + PR for a single repo."""
-        cwd = str(repo_path)
-        default_branch = "main"  # safe fallback before detection
-        try:
-            # Detect default branch (main or master)
-            head_ref = subprocess.run(
-                ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if head_ref.returncode == 0 and head_ref.stdout.strip():
-                default_branch = head_ref.stdout.strip().split("/")[-1]
-            else:
-                # Fallback: check if main exists, otherwise master
-                main_check = subprocess.run(
-                    ["git", "rev-parse", "--verify", "main"],
-                    cwd=cwd,
-                    capture_output=True,
-                    timeout=10,
-                )
-                default_branch = "main" if main_check.returncode == 0 else "master"
-
-            # Check for existing local branch
-            existing = _run_git(["git", "branch", "--list", branch], cwd)
-            if branch in existing.stdout:
-                print(f"  \u26a0\ufe0f branch {branch} already exists in {label}, skipping")
-                return
-
-            # Check for existing remote branch (skip if no remote)
-            remote_check = subprocess.run(
-                ["git", "ls-remote", "--heads", "origin", branch],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            if remote_check.returncode == 0 and remote_check.stdout.strip():
-                print(f"  \u26a0\ufe0f branch {branch} already on remote {label}, skipping")
-                return
-
-            # Refuse if repo has uncommitted changes
-            status = _run_git(["git", "status", "--porcelain"], cwd)
-            if status.stdout.strip():
-                errors.append(f"{label}: repo has uncommitted changes, refusing to checkout")
-                return
-
-            _run_git(["git", "checkout", default_branch], cwd)
-            _run_git(["git", "pull"], cwd)
-            _run_git(["git", "checkout", "-b", branch], cwd)
-
-            added = update_fn()
-            if not added:
-                print(f"  \u26a0\ufe0f already in {label}, skipping")
-                _run_git(["git", "checkout", default_branch], cwd)
-                # Clean up empty branch to avoid blocking future runs
-                subprocess.run(
-                    ["git", "branch", "-d", branch],
-                    cwd=cwd,
-                    capture_output=True,
-                    timeout=10,
-                )
-                return
-
-            for f in files_to_add:
-                _run_git(["git", "add", f], cwd)
-            _run_git(["git", "commit", "-m", commit_msg], cwd)
-            _run_git(["git", "push", "-u", "origin", branch], cwd)
-
-            # Use subprocess.run directly for gh (don't raise on non-zero)
-            r = subprocess.run(
-                ["gh", "pr", "create", "--title", pr_title, "--body", pr_body],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if r.returncode == 0:
-                pr_urls.append(r.stdout.strip())
-                print(f"  \u2705 {label} PR created")
-            else:
-                errors.append(f"{label}: gh pr create failed: {r.stderr.strip()}")
-        except Exception as e:
-            errors.append(f"{label}: {e}")
-            # Try to restore default branch — safe cleanup, ignore failures
-            try:
-                subprocess.run(
-                    ["git", "checkout", default_branch],
-                    cwd=cwd,
-                    capture_output=True,
-                    timeout=10,
-                )
-            except Exception:
-                pass  # Best-effort cleanup
-
-    # skill7 registry — local-only (skill7 has no remote)
-    if plugin_type in ("marketplace", "project"):
-        ws = cfg.skill7_workspace
-        reg_file = ws / "registry.json"
-        if reg_file.exists():
-            try:
-                added = add_to_registry(
-                    reg_file,
-                    name,
-                    category,
-                    version,
-                    description=description,
-                    owner=github_org,
-                )
-                if added:
-                    # Commit locally (no push — skill7 has no remote)
-                    add_r = subprocess.run(
-                        ["git", "add", "registry.json"],
-                        cwd=str(ws),
-                        capture_output=True,
-                        timeout=10,
-                    )
-                    commit_r = subprocess.run(
-                        ["git", "commit", "-m", f"feat: add {name} to registry"],
-                        cwd=str(ws),
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    if add_r.returncode != 0 or commit_r.returncode != 0:
-                        errors.append(
-                            f"skill7 registry: git commit failed: {commit_r.stderr.strip()}"
-                        )
-                    else:
-                        print("  \u2705 skill7 registry updated (local commit)")
-                else:
-                    print("  \u26a0\ufe0f already in skill7 registry, skipping")
-            except Exception as e:
-                errors.append(f"skill7 registry: {e}")
-        else:
-            # Fallback: run update-registry.py if registry.json doesn't exist
-            reg_script = ws / "scripts" / "update-registry.py"
-            if reg_script.exists():
-                try:
-                    subprocess.run(
-                        ["python3", str(reg_script)],
-                        cwd=str(ws),
-                        check=True,
-                        timeout=30,
-                    )
-                    print("  \u2705 skill7 registry regenerated via update-registry.py")
-                except Exception as e:
-                    errors.append(f"skill7 registry: {e}")
-
-    if plugin_type != "marketplace":
-        if errors:
-            print("\nErrors:")
-            for err in errors:
-                print(f"  - {err}")
-            return 1
-        return 0
-
-    # Emporium
-    entry = build_marketplace_entry(name, description, category, github_org)
-    branch = f"forge/add-{name}"
-
-    def _update_emporium() -> bool:
-        return add_to_marketplace_json(
-            cfg.emporium_path / ".claude-plugin" / "marketplace.json", entry
-        )
-
-    _register_in_repo(
-        cfg.emporium_path,
-        branch,
-        "emporium",
-        _update_emporium,
-        f"feat: add {name} to marketplace",
-        f"Add {name} to marketplace",
-        f"Adds {name} plugin to emporium registry.",
-        [".claude-plugin/marketplace.json"],
-    )
-
-    # Website — marketplace.json + plugin-meta.json
-    website_files_modified: list[str] = []
-
-    def _update_website() -> bool:
-        web = cfg.website_path
-        web_mp = web / "src" / "data" / "marketplace.json"
-        web_meta = web / "src" / "data" / "plugin-meta.json"
-        if not web_mp.exists() and not web_meta.exists():
-            errors.append(
-                "website: neither marketplace.json nor plugin-meta.json found in src/data/"
-            )
-            return False
-        added = False
-        if web_mp.exists():
-            if add_to_marketplace_json(web_mp, entry):
-                website_files_modified.append("src/data/marketplace.json")
-                added = True
-        if web_meta.exists():
-            # plugin-meta.json: {"categories": {...}, "plugins": {"name": {...}, ...}}
-            try:
-                meta = json.loads(web_meta.read_text())
-                if not isinstance(meta, dict) or "plugins" not in meta:
-                    errors.append(
-                        "website: plugin-meta.json must be a JSON object with 'plugins' key"
-                    )
-                elif name not in meta["plugins"]:
-                    meta["plugins"][name] = {
-                        "version": version,
-                        "license": "MIT",
-                        "status": "alpha",
-                        "tags": [category],
-                        "verified": False,
-                    }
-                    web_meta.write_text(json.dumps(meta, indent=2) + "\n")
-                    website_files_modified.append("src/data/plugin-meta.json")
-                    added = True
-            except json.JSONDecodeError:
-                errors.append("website: plugin-meta.json invalid JSON")
-        return added
-
-    _register_in_repo(
-        cfg.website_path,
-        branch,
-        "website",
-        _update_website,
-        f"feat: add {name} to website",
-        f"Add {name} to skill7.dev",
-        f"Adds {name} plugin metadata to website.",
-        website_files_modified,  # only stage files actually modified
-    )
-
-    # Summary
-    if pr_urls:
-        print(f"\nCreated {len(pr_urls)} PRs:")
-        for url in pr_urls:
-            print(f"  {url}")
-    if errors:
-        print("\nErrors (re-run is safe \u2014 idempotent):")
-        for err in errors:
-            print(f"  - {err}")
+    if not reg_result.success:
+        print(f"Registration failed for {name}:", file=sys.stderr)
+        for err in reg_result.errors:
+            print(f"  - {err}", file=sys.stderr)
         return 1
+
+    mode = "dry-run" if dry_run else "applied"
+    print(f"register ({mode}): {name}")
+    if reg_result.pr_urls:
+        for url in reg_result.pr_urls:
+            print(f"  PR: {url}")
     return 0
 
 
@@ -705,7 +431,7 @@ def cmd_bump(args: argparse.Namespace) -> int:
     mode = "dry-run" if dry_run else "applied"
     print(f"bump {args.level} ({mode}):")
     print(f"  {result.old_version} → {result.new_version}")
-    for target, status in result.sync_result.statuses.items():
+    for target, status in result.files_written.items():
         print(f"  {target}: {status}")
     return 0
 

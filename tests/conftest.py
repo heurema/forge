@@ -46,9 +46,14 @@ def forge_config(tmp_path: Path, registry_files: dict[str, Path]) -> "ForgeConfi
     (data_dir / "marketplace.json").symlink_to(registry_files["website_marketplace"])
     (data_dir / "plugin-meta.json").symlink_to(registry_files["website_meta"])
 
+    emporium_dir = tmp_path / "emporium-repo"
+    emporium_plugin_dir = emporium_dir / ".claude-plugin"
+    emporium_plugin_dir.mkdir(parents=True, exist_ok=True)
+    (emporium_plugin_dir / "marketplace.json").symlink_to(registry_files["emporium"])
+
     return ForgeConfig(
         skill7_workspace=tmp_path,
-        emporium_path=tmp_path / "emporium-repo",
+        emporium_path=emporium_dir,
         website_path=website_dir,
         github_org="heurema",
         default_type="marketplace",

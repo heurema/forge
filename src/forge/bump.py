@@ -78,6 +78,7 @@ def bump_version(
 
     # Validate config paths that sync will need
     config.require_path("skill7_workspace")
+    config.require_path("emporium_path")
     config.require_path("website_path")
 
     # Phase 2: compute

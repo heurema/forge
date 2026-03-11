@@ -32,11 +32,6 @@ class TestParseArgs:
         assert args.command == "register"
         assert args.dry_run is True
 
-    def test_register_yes(self) -> None:
-        args = parse_args(["register", "--yes"])
-        assert args.command == "register"
-        assert args.yes is True
-
     def test_readme_command(self) -> None:
         args = parse_args(["readme"])
         assert args.command == "readme"
