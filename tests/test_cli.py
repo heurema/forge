@@ -1,5 +1,7 @@
 """Tests for forge CLI entrypoint."""
 
+import pytest
+
 from forge.cli import parse_args
 
 
@@ -60,3 +62,33 @@ class TestParseArgs:
     def test_doctor_command(self) -> None:
         args = parse_args(["doctor"])
         assert args.command == "doctor"
+
+
+class TestNewCommands:
+    def test_sync_subcommand_exists(self) -> None:
+        ns = parse_args(["sync"])
+        assert ns.command == "sync"
+
+    def test_sync_apply_flag(self) -> None:
+        ns = parse_args(["sync", "--apply"])
+        assert ns.apply is True
+
+    def test_bump_requires_level(self) -> None:
+        with pytest.raises(SystemExit):
+            parse_args(["bump"])
+
+    def test_bump_patch(self) -> None:
+        ns = parse_args(["bump", "patch"])
+        assert ns.level == "patch"
+
+    def test_audit_plugin_flag(self) -> None:
+        ns = parse_args(["audit", "--plugin", "signum"])
+        assert ns.plugin == "signum"
+
+    def test_audit_allow_stale(self) -> None:
+        ns = parse_args(["audit", "--allow-stale"])
+        assert ns.allow_stale is True
+
+    def test_promote_output(self) -> None:
+        ns = parse_args(["promote", "--output", "out.md"])
+        assert ns.output == "out.md"

@@ -18,7 +18,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p_new.add_argument("name", help="Plugin name (lowercase, hyphens)")
     p_new.add_argument("--type", choices=["marketplace", "project", "local"], default="marketplace")
     p_new.add_argument(
-        "--category", choices=["devtools", "trading", "creative"], default="devtools"
+        "--category",
+        choices=["devtools", "trading", "creative", "publishing", "research"],
+        default="devtools",
     )
     p_new.add_argument("--description", default="", help="Plugin description")
     p_new.add_argument("--yes", action="store_true", help="Skip confirmations")
@@ -43,6 +45,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     # doctor
     sub.add_parser("doctor", help="Check dependencies and config")
+
+    # sync
+    p_sync = sub.add_parser("sync", help="Sync plugin.json to all registries")
+    p_sync.add_argument("--apply", action="store_true", help="Actually write (default: dry-run)")
+
+    # bump
+    p_bump = sub.add_parser("bump", help="Coordinated version bump")
+    p_bump.add_argument("level", choices=["patch", "minor", "major"], help="Version bump level")
+    p_bump.add_argument("--apply", action="store_true", help="Actually write (default: dry-run)")
+
+    # audit
+    p_audit = sub.add_parser("audit", help="Quality rubric + cross-repo consistency")
+    p_audit.add_argument("--plugin", type=str, help="Plugin name to audit (default: cwd)")
+    p_audit.add_argument("--allow-stale", action="store_true", help="Allow stale rubric snapshot")
+
+    # promote
+    p_promote = sub.add_parser("promote", help="Generate promotion checklist")
+    p_promote.add_argument("--output", type=str, help="Write checklist to file instead of stdout")
 
     return parser.parse_args(argv)
 
@@ -649,6 +669,106 @@ def cmd_register(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sync(args: argparse.Namespace) -> int:
+    from forge.config import ConfigError, load_config
+    from forge.sync import sync_plugin
+
+    plugin_dir = _find_plugin_dir()
+    try:
+        cfg = load_config(_config_path())
+    except ConfigError as e:
+        print(f"Config error: {e}", file=sys.stderr)
+        return 1
+
+    dry_run = not args.apply
+    result = sync_plugin(plugin_dir, cfg, dry_run=dry_run)
+    mode = "dry-run" if dry_run else "applied"
+    print(f"sync ({mode}):")
+    for target, status in result.statuses.items():
+        print(f"  {target}: {status}")
+    return 0
+
+
+def cmd_bump(args: argparse.Namespace) -> int:
+    from forge.bump import bump_version
+    from forge.config import ConfigError, load_config
+
+    plugin_dir = _find_plugin_dir()
+    try:
+        cfg = load_config(_config_path())
+    except ConfigError as e:
+        print(f"Config error: {e}", file=sys.stderr)
+        return 1
+
+    dry_run = not args.apply
+    result = bump_version(plugin_dir, cfg, args.level, dry_run=dry_run)
+    mode = "dry-run" if dry_run else "applied"
+    print(f"bump {args.level} ({mode}):")
+    print(f"  {result.old_version} → {result.new_version}")
+    for target, status in result.sync_result.statuses.items():
+        print(f"  {target}: {status}")
+    return 0
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    from forge.audit import audit_plugin
+    from forge.config import ConfigError, load_config
+
+    try:
+        cfg = load_config(_config_path())
+    except ConfigError as e:
+        print(f"Config error: {e}", file=sys.stderr)
+        return 1
+
+    if args.plugin:
+        # Search category dirs for plugin
+        ws = cfg.skill7_workspace
+        if not ws.exists():
+            print(f"Error: workspace unreachable: {ws}", file=sys.stderr)
+            return 1
+        plugin_dir = None
+        for cat_dir in sorted(ws.iterdir()):
+            if not cat_dir.is_dir() or cat_dir.name.startswith("."):
+                continue
+            candidate = cat_dir / args.plugin
+            if (candidate / ".claude-plugin" / "plugin.json").exists():
+                plugin_dir = candidate
+                break
+        if plugin_dir is None:
+            print(f"Error: plugin not found: {args.plugin}", file=sys.stderr)
+            return 1
+    else:
+        plugin_dir = _find_plugin_dir()
+
+    result = audit_plugin(plugin_dir, cfg, allow_stale=args.allow_stale)
+    if result.snapshot_error:
+        print(f"Rubric: ERROR — {result.snapshot_error}")
+    elif result.rubric_score is not None:
+        print(f"Rubric: {result.rubric_score}/12")
+    if result.rubric_errors:
+        for err in result.rubric_errors:
+            print(f"  - {err}")
+    if result.consistency_errors:
+        print("Consistency:")
+        for err in result.consistency_errors:
+            print(f"  - {err}")
+    has_errors = bool(result.snapshot_error or result.rubric_errors or result.consistency_errors)
+    return 1 if has_errors else 0
+
+
+def cmd_promote(args: argparse.Namespace) -> int:
+    from forge.promote import generate_checklist
+
+    plugin_dir = _find_plugin_dir()
+    checklist = generate_checklist(plugin_dir)
+    if args.output:
+        Path(args.output).write_text(checklist)
+        print(f"Checklist written to {args.output}")
+    else:
+        print(checklist)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     commands = {
@@ -658,6 +778,10 @@ def main(argv: list[str] | None = None) -> None:
         "readme": lambda: cmd_readme(args),
         "register": lambda: cmd_register(args),
         "doctor": cmd_doctor,
+        "sync": lambda: cmd_sync(args),
+        "bump": lambda: cmd_bump(args),
+        "audit": lambda: cmd_audit(args),
+        "promote": lambda: cmd_promote(args),
     }
     sys.exit(commands[args.command]())
 
