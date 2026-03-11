@@ -137,8 +137,10 @@ class TestBuildWebsiteEntry:
 class TestBuildMetaEntry:
     def test_maps_fields(self, sample_plugin: Path) -> None:
         pj = _load_plugin_json(sample_plugin)
-        entry = build_meta_entry(pj)
+        entry = build_meta_entry(pj, "devtools")
 
+        assert entry["category"] == "development"
+        assert entry["description"] == pj["description"]
         assert entry["version"] == "1.2.3"
         assert entry["license"] == "MIT"
         assert entry["status"] == "alpha"

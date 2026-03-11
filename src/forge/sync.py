@@ -86,9 +86,12 @@ def build_website_entry(plugin_json: dict, category: str) -> dict:
     }
 
 
-def build_meta_entry(plugin_json: dict) -> dict:
+def build_meta_entry(plugin_json: dict, category: str) -> dict:
     """Build a website plugin-meta.json entry."""
+    mapped = CATEGORY_MAP.get(category, "development")
     return {
+        "category": mapped,
+        "description": plugin_json["description"],
         "version": plugin_json["version"],
         "license": plugin_json.get("license", ""),
         "status": "alpha",
@@ -138,7 +141,7 @@ def sync_plugin(
         "skill7_registry": build_skill7_entry(plugin_json, category, plugin_dir),
         "emporium_marketplace": build_emporium_entry(plugin_json, category),
         "website_marketplace": build_website_entry(plugin_json, category),
-        "website_plugin_meta": build_meta_entry(plugin_json),
+        "website_plugin_meta": build_meta_entry(plugin_json, category),
     }
 
     result = SyncResult()
