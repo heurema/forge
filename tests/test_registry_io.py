@@ -154,18 +154,19 @@ class TestWebsiteMarketplace:
         entry = {"name": "new-plugin", "version": "1.0.0", "category": "development"}
         adapter.write_entry("new-plugin", entry)
         data = json.loads(registry_files["website_marketplace"].read_text())
-        names = [e["name"] for e in data]
+        names = [e["name"] for e in data["plugins"]]
         assert "new-plugin" in names
 
-    def test_flat_array_format(self, registry_files: dict[str, Path]) -> None:
+    def test_plugins_array_format(self, registry_files: dict[str, Path]) -> None:
         data = json.loads(registry_files["website_marketplace"].read_text())
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert isinstance(data["plugins"], list)
 
     def test_entries_sorted_by_name(self, registry_files: dict[str, Path]) -> None:
         adapter = WebsiteMarketplace(registry_files["website_marketplace"])
         adapter.write_entry("aaa-plugin", {"name": "aaa-plugin", "version": "1.0.0"})
         data = json.loads(registry_files["website_marketplace"].read_text())
-        names = [e["name"] for e in data]
+        names = [e["name"] for e in data["plugins"]]
         assert names == sorted(names)
 
 

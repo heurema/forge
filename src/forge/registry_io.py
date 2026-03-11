@@ -135,18 +135,19 @@ class EmporiumMarketplace:
 
 
 class WebsiteMarketplace:
-    """Adapter for website marketplace.json (flat JSON array)."""
+    """Adapter for website marketplace.json (object with plugins array)."""
 
     def __init__(self, path: Path) -> None:
         self.file_path = path
         self.target_name = "website_marketplace"
 
-    def _load(self) -> list:
+    def _load(self) -> dict:
         return json.loads(self.file_path.read_text())
 
     def read_entry(self, name: str) -> dict | None:
         data = self._load()
-        matches = [e for e in data if e.get("name") == name]
+        plugins = data["plugins"]
+        matches = [e for e in plugins if e.get("name") == name]
         if matches:
             if len(matches) > 1:
                 raise RegistryIOError(f"Data corruption: duplicate '{name}' in {self.file_path}")
@@ -155,22 +156,24 @@ class WebsiteMarketplace:
 
     def write_entry(self, name: str, entry: dict, **kwargs) -> str:
         data = self._load()
-        for i, e in enumerate(data):
+        plugins = data["plugins"]
+        for i, e in enumerate(plugins):
             if e.get("name") == name:
-                data[i] = entry
-                data.sort(key=lambda x: x.get("name", ""))
+                plugins[i] = entry
+                plugins.sort(key=lambda x: x.get("name", ""))
                 atomic_write_json(self.file_path, data)
                 return "updated"
-        data.append(entry)
-        data.sort(key=lambda x: x.get("name", ""))
+        plugins.append(entry)
+        plugins.sort(key=lambda x: x.get("name", ""))
         atomic_write_json(self.file_path, data)
         return "added"
 
     def remove_entry(self, name: str) -> bool:
         data = self._load()
-        for i, e in enumerate(data):
+        plugins = data["plugins"]
+        for i, e in enumerate(plugins):
             if e.get("name") == name:
-                data.pop(i)
+                plugins.pop(i)
                 atomic_write_json(self.file_path, data)
                 return True
         return False

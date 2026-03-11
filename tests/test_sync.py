@@ -221,7 +221,7 @@ class TestSyncPlugin:
 
         # Verify website marketplace has the entry
         data = json.loads(registry_files["website_marketplace"].read_text())
-        names = [e["name"] for e in data]
+        names = [e["name"] for e in data["plugins"]]
         assert "sample-plugin" in names
 
         # Verify plugin-meta has the entry
