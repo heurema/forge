@@ -2,12 +2,17 @@
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from forge.register import (
+    RegisterResult,
     add_to_marketplace_json,
     add_to_registry,
     build_marketplace_entry,
+    check_existing_prs,
     determine_targets,
+    preflight_check,
+    register_plugin,
 )
 
 
@@ -115,3 +120,65 @@ class TestAddToRegistry:
         reg_file.write_text(json.dumps({"devtools": [{"name": "existing"}]}))
         result = add_to_registry(reg_file, "existing", "devtools", "0.1.0")
         assert result is False
+
+
+class TestRegisterPlugin:
+    def test_dry_run_no_side_effects(
+        self, sample_plugin: Path, registry_files: dict, forge_config: "ForgeConfig"
+    ) -> None:
+        """Dry run should not call any git/gh commands."""
+        from forge.sync import SyncResult
+
+        with patch("forge.register.subprocess") as mock_sub, patch(
+            "forge.register.sync_plugin",
+            return_value=SyncResult(statuses={}),
+        ):
+            result = register_plugin(sample_plugin, forge_config, dry_run=True)
+            # subprocess should NOT be called during dry-run (preflight is skipped)
+            mock_sub.run.assert_not_called()
+            assert result.success
+
+    def test_calls_sync_internally(
+        self, sample_plugin: Path, registry_files: dict, forge_config: "ForgeConfig"
+    ) -> None:
+        """Register should call sync_plugin with dry_run=False."""
+        from forge.sync import SyncResult
+
+        with patch("forge.register.sync_plugin") as mock_sync:
+            mock_sync.return_value = SyncResult(statuses={"skill7_registry": "added"})
+            with patch("forge.register.preflight_check", return_value=[]):
+                result = register_plugin(sample_plugin, forge_config, dry_run=False)
+            mock_sync.assert_called_once()
+            call_kwargs = mock_sync.call_args
+            assert call_kwargs.kwargs.get("dry_run") is False or (
+                len(call_kwargs.args) > 2 and call_kwargs.args[2] is False
+            )
+            assert result.success
+
+    def test_preflight_fails_on_missing_path(self, tmp_path: Path) -> None:
+        """Preflight should report missing paths."""
+        from forge.config import ForgeConfig
+
+        config = ForgeConfig(
+            skill7_workspace=tmp_path / "nonexistent",
+            emporium_path=tmp_path / "nonexistent2",
+            website_path=tmp_path / "nonexistent3",
+            github_org="heurema",
+            default_type="marketplace",
+            default_category="devtools",
+            readme_template=None,
+        )
+        errors = preflight_check(tmp_path, config)
+        assert len(errors) >= 3  # at least 3 missing paths
+
+    def test_resume_skips_existing_prs(
+        self, sample_plugin: Path, registry_files: dict, forge_config: "ForgeConfig"
+    ) -> None:
+        """Resume mode should return existing PRs without re-syncing."""
+        with patch(
+            "forge.register.check_existing_prs",
+            return_value=["https://github.com/org/repo/pull/1"],
+        ):
+            result = register_plugin(sample_plugin, forge_config, dry_run=False, resume=True)
+            assert result.success
+            assert "https://github.com/org/repo/pull/1" in result.pr_urls
