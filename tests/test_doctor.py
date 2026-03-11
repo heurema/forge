@@ -84,3 +84,27 @@ class TestProvidersDoctorChecks:
         cfg_check = next(r for r in results if r.name == "providers config")
         assert not cfg_check.passed
         assert "version" in cfg_check.detail.lower()
+
+
+class TestRubricRefresh:
+    def test_copies_rubric_and_writes_manifest(self, tmp_path: Path) -> None:
+        # Create fake emporium with rubric
+        emporium = tmp_path / "emporium"
+        (emporium / "lib" / "rubric").mkdir(parents=True)
+        (emporium / "lib" / "rubric" / "__init__.py").write_text("# rubric code")
+        (emporium / ".git").mkdir()  # fake git dir
+        # Create forge src dir for snapshot
+        forge_src = tmp_path / "forge" / "src" / "forge"
+        forge_src.mkdir(parents=True)
+
+        from forge.doctor import refresh_rubric_snapshot
+        result = refresh_rubric_snapshot(emporium, forge_src / "rubric_snapshot")
+        assert result.passed
+        assert (forge_src / "rubric_snapshot" / "__init__.py").exists()
+        assert (forge_src / "rubric_snapshot" / "manifest.json").exists()
+
+    def test_gh_auth_check(self) -> None:
+        from forge.doctor import check_gh_auth
+        result = check_gh_auth()
+        # Just verify it returns a CheckResult, don't assert pass/fail
+        assert hasattr(result, "passed")

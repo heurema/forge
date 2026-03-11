@@ -1,6 +1,6 @@
 [project]
 name = "forge"
-version = "0.2.0"
+version = "0.3.0"
 description = "Plugin lifecycle manager for heurema org"
 requires-python = ">=3.14"
 dependencies = ["jinja2>=3.1"]
@@ -13,6 +13,9 @@ forge = "forge.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
 
 [tool.ruff]
 target-version = "py314"

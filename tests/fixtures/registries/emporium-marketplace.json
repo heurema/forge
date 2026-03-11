@@ -1,0 +1,14 @@
+{
+  "name": "emporium",
+  "owner": "heurema",
+  "metadata": {"version": "1.0"},
+  "plugins": [
+    {
+      "name": "existing-plugin",
+      "description": "An existing plugin",
+      "category": "development",
+      "source": {"source": "url", "url": "https://github.com/heurema/existing-plugin.git"},
+      "homepage": "https://github.com/heurema/existing-plugin"
+    }
+  ]
+}

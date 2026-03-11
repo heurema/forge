@@ -1,0 +1,10 @@
+[
+  {
+    "name": "existing-plugin",
+    "description": "An existing plugin",
+    "version": "0.5.0",
+    "category": "development",
+    "source": {"source": "url", "url": "https://github.com/heurema/existing-plugin.git"},
+    "homepage": "https://github.com/heurema/existing-plugin"
+  }
+]
