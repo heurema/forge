@@ -1,0 +1,3 @@
+# Reference
+
+Sample plugin reference.

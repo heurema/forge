@@ -1,0 +1,25 @@
+{
+  "devtools": [
+    {
+      "name": "existing-plugin",
+      "description": "An existing plugin",
+      "version": "0.5.0",
+      "path": "devtools/existing-plugin",
+      "allowed_tools": [],
+      "skill_id": "existing-plugin:existing-plugin",
+      "capabilities": ["testing"],
+      "metadata": {
+        "author": "heurema",
+        "compatibility": "claude-code",
+        "homepage": "https://github.com/heurema/existing-plugin",
+        "keywords": ["testing"],
+        "license": "MIT",
+        "repository": "https://github.com/heurema/existing-plugin"
+      }
+    }
+  ],
+  "creative": [],
+  "trading": [],
+  "publishing": [],
+  "research": []
+}

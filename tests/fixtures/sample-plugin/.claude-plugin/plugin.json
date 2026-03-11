@@ -1,0 +1,11 @@
+{
+  "name": "sample-plugin",
+  "description": "A sample plugin for testing",
+  "version": "1.2.3",
+  "author": "heurema",
+  "license": "MIT",
+  "keywords": ["testing", "sample"],
+  "compatibility": "claude-code",
+  "homepage": "https://github.com/heurema/sample-plugin",
+  "repository": "https://github.com/heurema/sample-plugin"
+}
